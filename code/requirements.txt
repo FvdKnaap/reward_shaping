@@ -1,0 +1,25 @@
+# requirements needed for the project, currently without version such that the latest compatible version is downloaded
+
+pandas
+numpy
+hydra-core
+wandb 
+gymnasium
+matplotlib
+stable-baselines3>=2.0.0
+torch 
+torchvision 
+torchaudio
+IPython
+lxml
+accelerate
+scikit-learn
+ta
+mo_gymnasium
+gymnasium[mujoco]
+gpytorch
+pymoo
+tensorboardX
+future
+consoleprinter
+hvwfg

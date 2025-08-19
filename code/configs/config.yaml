@@ -1,0 +1,8 @@
+# configs/config.yaml
+defaults:
+  - shaping: main.yaml
+  - _self_
+
+  
+  
+

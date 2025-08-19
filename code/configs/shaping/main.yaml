@@ -1,0 +1,144 @@
+active_env: env_walker2d
+
+env_hopper:
+  env:
+    name: mo-hopper-v5
+    reward_type: 'sparse'
+    sparsity_levels: [1.0,0.0,0.0]
+    reward_weights: [1.0, 0.0,1e-3]
+
+  irl:
+    initial_collection_episodes: 500 
+    expert_collection_episodes: 500   
+    num_refinement_cycles: 5          
+    refinement_timesteps: 100000      
+    use_nn: True
+    nn_epochs: 1000                     
+    nn_lr: 0.005
+    ensemble_size: 3
+    reference: [-100.0,-100.0,-100.0]
+    use_dense: True
+    use_residual: True
+
+    use_enc: True
+    lambda: 10
+
+  rl_agent:
+    gamma: 0.99
+    total_timesteps: 500000
+    eval_freq: 10000
+    log_dir: "./logs/"
+    rl_algorithm: 'sac'
+    device: cuda
+    learning_starts: 10000
+    
+
+  seed: 0 # Default seed
+  num_parallel_runs: 1
+  log_dir: 'logs'
+env_cheetah:
+  env:
+    name: mo-halfcheetah-v5
+    reward_type: 'sparse'
+    sparsity_levels: [1.0,0.0]
+    reward_weights: [1.0,0.1]
+
+  irl:
+    initial_collection_episodes: 500 
+    expert_collection_episodes: 500   
+    num_refinement_cycles: 5          
+    refinement_timesteps: 100000    
+    use_nn: True
+    nn_epochs: 1000                    
+    nn_lr: 0.005
+    ensemble_size: 3
+    reference: [-100.0,-100.0]
+    use_dense: True
+    use_residual: True
+
+    use_enc: True
+    lambda: 10
+
+  rl_agent:
+    gamma: 0.99
+    total_timesteps: 500000
+    eval_freq: 10000
+    log_dir: "./logs/"
+    rl_algorithm: 'sac'
+    device: cuda
+    learning_starts: 10000
+
+  seed: 0 
+  num_parallel_runs: 1
+  log_dir: 'logs'
+
+env_walker2d:
+  env:
+    name: mo-walker2d-v5
+    reward_type: 'sparse'
+    sparsity_levels: [1.0,0.0]
+    reward_weights: [1.0,1e-3]
+
+  irl:
+    initial_collection_episodes: 500  
+    expert_collection_episodes: 500   
+    num_refinement_cycles: 5          
+    refinement_timesteps: 100000     
+    use_nn: True
+    nn_epochs: 1000                     
+    nn_lr: 0.005
+    ensemble_size: 3
+    reference: [-100.0,-100.0]
+    use_dense: True
+    use_residual: True
+
+
+    use_enc: True
+    lambda: 10
+  rl_agent:
+    gamma: 0.99
+    total_timesteps: 500000
+    eval_freq: 10000
+    log_dir: "./logs/"
+    rl_algorithm: 'sac'
+    device: cuda
+    learning_starts: 10000
+    
+  seed: 0 
+  num_parallel_runs: 1
+  log_dir: 'logs'
+
+env_swimmer:
+  env:
+    name: mo-swimmer-v5
+    reward_type: 'sparse'
+    sparsity_levels: [1.0,0.0]
+    reward_weights: [1.0,1e-4]
+
+  irl:
+    initial_collection_episodes: 500  
+    expert_collection_episodes: 500   
+    num_refinement_cycles: 5        
+    refinement_timesteps: 100000      
+    use_nn: True
+    nn_epochs: 1000                 
+    nn_lr: 0.005
+    ensemble_size: 3
+    reference: [-100.0,-100.0]
+    use_dense: True
+    use_residual: True
+    use_enc: True
+    lambda: 10
+
+  rl_agent:
+    gamma: 0.99
+    total_timesteps: 500000
+    eval_freq: 10000
+    log_dir: "./logs/"
+    rl_algorithm: 'sac'
+    device: cuda
+    learning_starts: 10000
+
+  seed: 0
+  num_parallel_runs: 1
+  log_dir: 'logs'
