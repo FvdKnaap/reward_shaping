@@ -48,7 +48,6 @@ env_cheetah:
     expert_collection_episodes: 500   
     num_refinement_cycles: 5          
     refinement_timesteps: 100000    
-    use_nn: True
     nn_epochs: 1000                    
     nn_lr: 0.005
     ensemble_size: 3
@@ -84,7 +83,6 @@ env_walker2d:
     expert_collection_episodes: 500   
     num_refinement_cycles: 5          
     refinement_timesteps: 100000     
-    use_nn: True
     nn_epochs: 1000                     
     nn_lr: 0.005
     ensemble_size: 3
@@ -120,7 +118,6 @@ env_swimmer:
     expert_collection_episodes: 500   
     num_refinement_cycles: 5        
     refinement_timesteps: 100000      
-    use_nn: True
     nn_epochs: 1000                 
     nn_lr: 0.005
     ensemble_size: 3
