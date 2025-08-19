@@ -53,17 +53,17 @@ code/
 
 ## File/Folder Explanations
 
-- **plot_single_policy.py**: Script for plotting results of a single policy.
+- **plot_single_policy.py:** Script for plotting results of a single policy.
 
-- **plot_wandb.py**: Script for plotting results using Weights & Biases runs.
+- **plot_wandb.py:** Script for plotting results using Weights & Biases runs.
 
-- **save_wandb.py**: Script to fetch and merge Weights & Biases run data filtered by config parameters.
+- **save_wandb.py:** Script to fetch and merge Weights & Biases run data filtered by config parameters.
 
-- **requirements.txt**: Python dependencies for the project.
+- **requirements.txt:** Python dependencies for the project.
 
-- **setup.py**: Packaging and installation script. See [`setup.py`](setup.py).
+- **setup.py:** Packaging and installation script. See [`setup.py`](setup.py).
 
-- **configs/**: Contains configuration files (e.g., `config.yaml`) for experiments.
+- **configs/:** Contains configuration files (e.g., `config.yaml`) for experiments.
 
 - **morl_baselines/**  
   Baseline algorithms and utilities for multi-objective RL. This comes from https://github.com/LucasAlegre/morl-baselines/tree/main?tab=readme-ov-file.
@@ -77,12 +77,12 @@ code/
 
   It has been adapted in this work. Specifically, the capql file has been adapted to also create an equivariant policy.
 
-- **src/**: This folder contains most of the files to run the models.
-  - ***pareto_front/***:
+- **src/:** This folder contains most of the files to run the models.
+  - ***pareto_front/***
     - main.py: file to run the gold standard dense or sparse rewards for CAPQL.
     - main_shaped.py: file to run the shaped rewards for CAPQL.
     - main_eq.py: file to run the shaped rewards suing equivariant policy.
-  - ***reward_shaping/***:
+  - ***reward_shaping/***
     - architecture.py: file containing the neural networks for the reward shaper.
     - baseline.py: file to run the gold standard dense or sparse rewards for scalarised SAC.
     - env.py: wrapper to make the environments sparse.
@@ -90,17 +90,14 @@ code/
 
 ## Usage
 
-- **Plotting a single policy:**  
+- **Running pareto front files:**
+  First go into the code folder, then
   ```sh
-  python plot_single_policy.py [args]
+  python -m src.pareto_front.main_shaped shaping.active_env=env_hopper shaping.env_hopper.env.reward_type=shaped \ shaping.env_hopper.seed=0 shaping.env_hopper.irl.initial_collection_episodes=1000 \
+  shaping.env_hopper.irl.expert_collection_episodes=1000 shaping.env_hopper.log_dir=last \
+  shaping.env_hopper.irl.num_refinement_cycles=2 shaping.env_hopper.irl.refinement_timesteps=100000 \
+  shaping.env_hopper.irl.ensemble_size=3
   ```
-
-- **Plotting with Weights & Biases:**  
-  ```sh
-  python plot_wandb.py [args]
-  ```
-
-
 ## Configuration
 
 - Main configuration file: `configs/config.yaml`
@@ -109,23 +106,23 @@ code/
 active_env: environment you want to use, which contains the following configs
 
 env_hopper:
-  env:
-    name: name of the environment as defined by mo-gymnasium
-    reward_type: use 'sparse', 'dense', or 'shaped' rewards
-    sparsity_levels: sparsity levels to use for the sparse/shaped results, e.g., [1.0,0.0,0.0]
-    reward_weights: reward weights used by scalarised SAC, e.g., [1.0, 0.0,1e-3]
+  - env:
+    - name: name of the environment as defined by mo-gymnasium
+    - reward_type: use 'sparse', 'dense', or 'shaped' rewards
+    - sparsity_levels: sparsity levels to use for the sparse/shaped results, e.g., [1.0,0.0,0.0]
+    - reward_weights: reward weights used by scalarised SAC, e.g., [1.0, 0.0,1e-3]
 
-  irl:
-    initial_collection_episodes: number of episodes to train the reward shaper on at the start 
-    expert_collection_episodes: number of expert episodes sued to update the reward shaper   
-    num_refinement_cycles: number of times to update the reward shaper          
-    refinement_timesteps: number of timestpes per cycle      
-    nn_epochs: number of epochs to train the reward shaper on                     
-    nn_lr: learning rate to use for the reward shaper
-    ensemble_size: number of reward models to use
-    reference: referecne point used for HV, e.g., [-100.0,-100.0,-100.0]
-    use_dense: use dense rewards as features for the reward shaper
-    use_residual: use residual architecture for the reward shaper
-    use_enc: use symmetric state encoder for the equivariant policy
-    lambda: loss parameter for the equivariance loss
+  - irl:
+    - initial_collection_episodes: number of episodes to train the reward shaper on at the start 
+    - expert_collection_episodes: number of expert episodes sued to update the reward shaper   
+    - num_refinement_cycles: number of times to update the reward shaper          
+    - refinement_timesteps: number of timestpes per cycle      
+    - nn_epochs: number of epochs to train the reward shaper on                     
+    - nn_lr: learning rate to use for the reward shaper
+    - ensemble_size: number of reward models to use
+    - reference: referecne point used for HV, e.g., [-100.0,-100.0,-100.0]
+    - use_dense: use dense rewards as features for the reward shaper
+    - use_residual: use residual architecture for the reward shaper
+    - use_enc: use symmetric state encoder for the equivariant policy
+    - lambda: loss parameter for the equivariance loss
 
