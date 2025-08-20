@@ -3,10 +3,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 from dateutil import parser
 import os
-import argparse # Import the argparse library
+import argparse
 
 def main():
-    # --- Argument Parsing ---
+
     # Create the parser
     arg_parser = argparse.ArgumentParser(
         description="Fetch and merge wandb run data filtered by a specific config parameter and date."
@@ -29,9 +29,8 @@ def main():
 
     # Parse the arguments from the command line
     args = arg_parser.parse_args()
-    # ---------------------
 
-    # --- Main script logic ---
+
     # Construct the output path and create directories if they don't exist
     output_path = os.path.join(args.output_dir, args.project)
     os.makedirs(output_path, exist_ok=True)
@@ -43,7 +42,7 @@ def main():
     runs = api.runs(f"{args.entity}/{args.project}")
 
     all_data = []
-    print(f"Filtering runs for config '{args.param_key}: {args.param_value}' on {args.target_date}...")
+    print(f"Filtering runs for config '{args.param_key}: {args.param_value}'")
     
     for run in runs:
         # We need to parse the string timestamp and remove timezone info for a direct comparison

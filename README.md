@@ -98,6 +98,7 @@ code/
   shaping.env_hopper.irl.num_refinement_cycles=2 shaping.env_hopper.irl.refinement_timesteps=100000 \
   shaping.env_hopper.irl.ensemble_size=3
   ```
+  This applies to all runnable files, e.g., main.py, main_shaped.py, main_eq.py, baseline.py, and reward_model.py
 ## Configuration
 
 - Main configuration file: `configs/config.yaml`

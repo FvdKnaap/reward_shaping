@@ -44,7 +44,7 @@ def train_single_agent(cfg: DictConfig, seed: int, run_id: int):
         train_env = LinearReward(base_env, weight=np.array(list(cfg.env.reward_weights)))
         
     else:
-        raise ValueError(f"Unknown reward_type: '{reward_type}'. Must be 'shaped', 'sparse', or 'dense'.")
+        raise ValueError(f"Unknown reward_type: '{reward_type}'. Must be 'sparse', or 'dense'.")
 
     train_env.action_space.seed(seed)
     _ = train_env.reset(seed=seed)
@@ -68,6 +68,7 @@ def train_single_agent(cfg: DictConfig, seed: int, run_id: int):
         deterministic=True, 
         render=False
     )
+
     if cfg.rl_agent.device == 'cuda':
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     else:
@@ -104,7 +105,7 @@ def evaluate_agent_parallel(cfg: DictConfig):
     
     print(f"Running {cfg.num_parallel_runs} parallel experiments with seeds: {seeds}")
     
-    # Method 1: Using ProcessPoolExecutor (Recommended)
+    # Using ProcessPoolExecutor
     print("Starting parallel training using ProcessPoolExecutor...")
     with ProcessPoolExecutor(max_workers=cfg.num_parallel_runs) as executor:
         # Submit all jobs
@@ -120,11 +121,11 @@ def evaluate_agent_parallel(cfg: DictConfig):
         for i, future in enumerate(futures):
             try:
                 result = future.result()  
-                print(f"✓ {result}")
+                print(f"{result}")
             except Exception as e:
-                print(f"✗ Run {i+1} failed with error: {e}")
+                print(f"Run {i+1} failed with error: {e}")
     
-    print("\n--- All Parallel Training Runs Complete ---")
+    print("\n All Parallel Training Runs Complete")
 
 
 if __name__ == "__main__":

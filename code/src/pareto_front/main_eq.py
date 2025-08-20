@@ -162,14 +162,14 @@ def run_parallel_iterative_training(cfg: DictConfig):
             future = executor.submit(run_single_iterative_run, cfg, seed, i + 1)
             futures.append(future)
         
-        print("\nWaiting for all training runs to complete...")
+        print("\n Waiting for all training runs to complete...")
         for future in futures:
             try:
                 result = future.result()
                 print(f"✓ {result}")
             except Exception as e:
-                print(f"✗ A run failed with an unexpected error: {e}")
-    print("\n--- All Parallel Training Runs Have Finished ---")
+                print(f"A run failed with an unexpected error: {e}")
+    print("\n All Parallel Training Runs Have Finished")
 
 if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)

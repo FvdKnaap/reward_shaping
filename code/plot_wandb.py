@@ -3,9 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from scipy.stats import t
-import scienceplots  # Needed for the 'science' plot style
-import argparse    # Import the argparse library
-
+import scienceplots  
+import argparse    
 def plot_data(args):
     """
     Reads data from multiple CSV files and plots a separate line with a 95%
@@ -34,7 +33,7 @@ def plot_data(args):
             print(f" Warning: The file '{file_path}' was not found and will be skipped.")
             continue
 
-        # --- Calculations for the current file ---
+        # Calculations for the current file 
         grouped = df.groupby(args.step_col)[args.value_col].agg(['mean', 'std', 'count'])
         
         # Add the initial zero-point row for a clean plot start
@@ -51,7 +50,7 @@ def plot_data(args):
         grouped['ci_lower'] = grouped['mean'] - ci
         grouped['ci_upper'] = grouped['mean'] + ci
 
-        # --- Plotting for the current file ---
+        # Plotting for the current file 
         # Determine the label for the current line
         if args.labels:
             label = args.labels[i]
@@ -72,7 +71,7 @@ def plot_data(args):
             f"Max Mean: {grouped['mean'].max():.2f}"
         )
        
-    # --- Final Plot Configuration ---
+    # Final Plot Configuration
     if not ax.lines:
         print("Error: No data was plotted. Check if your CSV files exist and contain data.")
         plt.close(fig)
@@ -80,7 +79,7 @@ def plot_data(args):
     
     # Set labels and legend with specified font sizes
     ax.set_xlabel('Timestep', fontsize=20)
-    ax.set_ylabel(args.value_col.replace('_', ' ').title(), fontsize=20) # Nicer formatting for the label
+    ax.set_ylabel(args.value_col.replace('_', ' ').title(), fontsize=20)
     ax.legend(fontsize=16)
     fig.tight_layout()
     plt.grid(False)
@@ -98,7 +97,7 @@ if __name__ == "__main__":
     # --- Argument Parsing ---
     parser = argparse.ArgumentParser(
         description="Plot data with confidence intervals from multiple CSV files.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter # Shows default values in help message
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter 
     )
 
     parser.add_argument("--prefixes", nargs='+', required=True,

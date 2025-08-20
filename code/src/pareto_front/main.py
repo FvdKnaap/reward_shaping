@@ -66,11 +66,11 @@ def run_parallel_iterative_training(cfg: DictConfig):
             future = executor.submit(main, cfg, seed, i + 1)
             futures.append(future)
         
-        print("\nWaiting for all training runs to complete...")
+        print("\n Waiting for all training runs to complete...")
         for future in futures:
             try:
                 result = future.result()
-                print(f"✓ {result}")
+                print(f"{result}")
             except Exception as e:
                 print(f"A run failed with an unexpected error: {e}")
     

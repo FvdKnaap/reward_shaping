@@ -5,14 +5,14 @@ import scienceplots
 import itertools
 import os
 from scipy.stats import t
-import argparse # Import the argparse library
+import argparse 
 
 def load_data_from_runs(model_path: Path, args: argparse.Namespace) -> np.ndarray:
     """
     Loads and processes data from all .npz files for a specific model.
 
     Args:
-        model_path (Path): Path to the model's directory (e.g., 'results/PPO').
+        model_path (Path): Path to the model's directory (e.g., 'results/...').
         args (argparse.Namespace): Parsed command-line arguments.
 
     Returns:
@@ -44,7 +44,7 @@ def load_data_from_runs(model_path: Path, args: argparse.Namespace) -> np.ndarra
     if not all_runs_data:
         return np.array([])
 
-    # Special handling to group runs for a specific model if requested
+    # Special handling to group runs for a specific model if requested - used for shaped results due to cycles
     if args.group_by_model and model_path.name == args.group_by_model:
         print(f"Grouping runs for '{args.group_by_model}' with group size {args.group_size}...")
         chunk_size = args.group_size
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                         help="The key for the data array within the .npz files.")
     parser.add_argument("--output_dir", type=str, default="figures", 
                         help="Directory to save the plot.")
-    parser.add_argument("--x_label", type=str, default="Timesteps ($10^4$)", 
+    parser.add_argument("--x_label", type=str, default="Timesteps", 
                         help="Label for the x-axis.")
     parser.add_argument("--y_label", type=str, default="Average Reward", 
                         help="Label for the y-axis.")
