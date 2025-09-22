@@ -1,4 +1,4 @@
-# Credit Assignment in Mixed-Sparsity Multi-Objective Reinforcement Learning through Reward Shaping and Reflectional Equivariance
+# EXPLOITING REFLECTIONAL SYMMETRY IN HETEROGENEOUS MORL
 
 A research project for reward shaping in reinforcement learning.
 
