@@ -11,7 +11,102 @@ import numpy.typing as npt
 from pymoo.indicators.hv import HV
 from pymoo.indicators.igd import IGD
 
+import numpy as np
+from typing import List, Dict
 
+# This helper class is needed for the constraint satisfaction metric
+class ReturnConstraint:
+    """Helper class to check if a multi-objective return satisfies a set of linear constraints."""
+    def __init__(self, weights: np.ndarray, thresholds: np.ndarray):
+        self.weights = weights
+        self.thresholds = thresholds
+
+    def __call__(self, point: np.ndarray) -> bool:
+        # Checks if `w^T * point >= t` for all w and t.
+        # The original code's `(x, y)` implies a 2D point. This generalizes it.
+        return all(np.dot(w, point) >= t for w, t in zip(self.weights, self.thresholds))
+
+def variance_objective_metric(
+    front: List[np.ndarray],
+    reward_dim: int,
+    n_samples: int = 100
+) -> float:
+    """
+    Calculates the variance objective metric.
+
+    This metric rewards higher mean returns and penalizes higher variance.
+    """
+    all_results = []
+    # Generalize weights for any reward_dim. We need 2*reward_dim weights:
+    # one set for the mean (positive contribution) and one for the variance (negative contribution).
+    weights = np.random.uniform(0, 1, size=(n_samples, 2 * reward_dim))
+    weights = weights / weights.sum(axis=1, keepdims=True)
+
+    for i in range(n_samples):
+        results_for_weight = []
+        for policy_returns in front:
+            # Ensure policy_returns is a 2D array
+            if policy_returns.ndim == 1:
+                policy_returns = np.expand_dims(policy_returns, axis=0)
+            
+            curr_mean = policy_returns.mean(axis=0)
+            curr_var = policy_returns.std(axis=0)
+            
+            mean_weights = weights[i, :reward_dim]
+            var_weights = weights[i, reward_dim:]
+            
+            score = np.sum(curr_mean * mean_weights) - np.sum(curr_var * var_weights)
+            results_for_weight.append(score)
+        all_results.append(np.max(results_for_weight))
+
+    return np.mean(all_results)
+
+def constraint_satisfaction_metric(
+    front: List[np.ndarray],
+    reward_dim: int,
+    return_bounds: Dict[str, np.ndarray],
+    n_samples: int = 100
+) -> float:
+    """
+    Calculates the constraint satisfaction metric.
+
+    This metric measures the ability of the policy set to satisfy randomly generated
+    linear constraints on the return space.
+    """
+    constraints = []
+    min_return, max_return = return_bounds['minimum'], return_bounds['maximum']
+    
+    # Generate random constraints, making the function self-contained
+    for _ in range(n_samples):
+        # Original code used 1 or 2 constraints. We'll stick to that for consistency.
+        num_sub_constraints = np.random.randint(1, 3)
+        
+        # Generate weights that sum to 1
+        constraint_weights = np.random.dirichlet(np.ones(reward_dim), size=num_sub_constraints)
+        
+        # Generate a random threshold for each sub-constraint
+        thresholds = []
+        for w in constraint_weights:
+            min_val = np.dot(w, min_return)
+            max_val = np.dot(w, max_return)
+            thresholds.append(np.random.uniform(min_val, max_val))
+        
+        constraints.append(ReturnConstraint(constraint_weights, np.array(thresholds)))
+
+    # Calculate satisfaction
+    avg_max_prob = []
+    for constr in constraints:
+        probs = []
+        for policy_returns in front:
+            if policy_returns.ndim == 1:
+                policy_returns = np.expand_dims(policy_returns, axis=0)
+            # Probability is the mean number of times the constraint is met
+            prob = np.mean([constr(point) for point in policy_returns])
+            probs.append(prob)
+        avg_max_prob.append(np.max(probs))
+
+    return np.mean(avg_max_prob)
+    
 def hypervolume(ref_point: np.ndarray, points: List[npt.ArrayLike]) -> float:
     """Computes the hypervolume metric for a set of points (value vectors) and a reference point (from Pymoo).
 

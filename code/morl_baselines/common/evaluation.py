@@ -16,7 +16,9 @@ from morl_baselines.common.performance_indicators import (
     hypervolume,
     igd,
     maximum_utility_loss,
-    spacing
+    spacing,
+    constraint_satisfaction_metric,
+    variance_objective_metric
 )
 from morl_baselines.common.weights import equally_spaced_weights
 
@@ -136,11 +138,13 @@ def policy_evaluation_mo(
     avg_vec_return = np.mean([eval[2] for eval in evals], axis=0)
     avg_disc_vec_return = np.mean([eval[3] for eval in evals], axis=0)
 
+    all_disc_vec_returns = np.array([eval[3] for eval in evals])
     return (
         avg_scalarized_return,
         avg_scalarized_discounted_return,
         avg_vec_return,
         avg_disc_vec_return,
+        all_disc_vec_returns,
     )
 
 
@@ -150,6 +154,7 @@ def log_all_multi_policy_metrics(
     reward_dim: int,
     global_step: int,
     n_sample_weights: int,
+    return_bounds: dict, 
     ref_front: Optional[List[np.ndarray]] = None,
 ):
     """Logs all metrics for multi-policy training.
@@ -157,6 +162,8 @@ def log_all_multi_policy_metrics(
     Logged metrics:
     - hypervolume
     - expected utility metric (EUM)
+    - variance objective (VO)
+    - constraint satisfaction (CS)
     If a reference front is provided, also logs:
     - Inverted generational distance (IGD)
     - Maximum utility loss (MUL)
@@ -169,17 +176,37 @@ def log_all_multi_policy_metrics(
         n_sample_weights: number of weights to sample for EUM and MUL computation
         ref_front: reference front, if known
     """
+    
+    # The original distributional metrics operate on the full return distributions,
+    # not just the Pareto-optimal mean values. So we use `current_front`.
+    vo = variance_objective_metric(
+        front=current_front,
+        reward_dim=reward_dim,
+        n_samples=n_sample_weights
+    )
+    cs = constraint_satisfaction_metric(
+        front=current_front,
+        reward_dim=reward_dim,
+        return_bounds=return_bounds,
+        n_samples=n_sample_weights
+    )
+    current_front = [np.mean(p, axis=0) for p in current_front]
+    # --- The rest of your function remains the same ---
     filtered_front = list(filter_pareto_dominated(current_front))
     hv = hypervolume(hv_ref_point, filtered_front)
     eum = expected_utility(filtered_front, weights_set=equally_spaced_weights(reward_dim, n_sample_weights))
     card = cardinality(filtered_front)
-    sp = spacing(filtered_front) 
+    sp = spacing(filtered_front)
+    
+    # Add the new metrics to your wandb log
     wandb.log(
         {
             "eval/hypervolume": hv,
             "eval/eum": eum,
             "eval/cardinality": card,
             "eval/spacing": sp,
+            "eval/variance_objective": vo,          # <-- Added metric
+            "eval/constraint_satisfaction": cs,   # <-- Added metric
             "global_step": global_step,
         },
         commit=False,
@@ -189,6 +216,7 @@ def log_all_multi_policy_metrics(
         data=[p.tolist() for p in filtered_front],
     )
     wandb.log({"eval/front": front})
+
 
     # If PF is known, log the additional metrics
     if ref_front is not None:

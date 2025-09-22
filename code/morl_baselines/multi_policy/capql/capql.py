@@ -435,6 +435,12 @@ class CAPQL(MOAgent, MOPolicy):
                 }
             )
 
+
+        # Initialize min with positive infinity and max with negative infinity
+# so that the first real return values will correctly replace them.
+        overall_min_return = np.full(self.reward_dim, np.inf)
+        overall_max_return = np.full(self.reward_dim, -np.inf)
+
         eval_weights = equally_spaced_weights(self.reward_dim, n=num_eval_weights_for_front)
 
         angle = th.pi * (22.5 / 180)
@@ -481,14 +487,29 @@ class CAPQL(MOAgent, MOPolicy):
             if self.log and self.global_step % eval_freq == 0:
                 # Evaluation
                 returns_test_tasks = [
-                    policy_evaluation_mo(self, eval_env, ew, rep=num_eval_episodes_for_front)[3] for ew in eval_weights
+                    policy_evaluation_mo(self, eval_env, ew, rep=num_eval_episodes_for_front)[4]  for ew in eval_weights
                 ]
+
+              
+                batch_min = np.min([np.min(p, axis=0) for p in returns_test_tasks], axis=0)
+                batch_max = np.max([np.max(p, axis=0) for p in returns_test_tasks], axis=0)
+                
+                overall_min_return = np.minimum(overall_min_return, batch_min)
+                overall_max_return = np.maximum(overall_max_return, batch_max)
+
+            # Create the dictionary required by the metric function
+                return_bounds = {
+                    "minimum": overall_min_return,
+                    "maximum": overall_max_return
+                }
+
                 log_all_multi_policy_metrics(
                     current_front=returns_test_tasks,
                     hv_ref_point=ref_point,
                     reward_dim=self.reward_dim,
                     global_step=self.global_step,
                     n_sample_weights=num_eval_weights_for_eval,
+                    return_bounds=return_bounds,
                     ref_front=known_pareto_front,
                 )
 

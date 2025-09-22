@@ -33,7 +33,7 @@ def train_single_agent(cfg: DictConfig, seed: int, run_id: int):
     torch.manual_seed(seed)
 
     base_env = mo_gym.make(cfg.env.name)
-
+    config = OmegaConf.to_container(cfg, resolve=True)
     if reward_type == 'sparse':
         print(f"Using sparse rewards with sparsity levels: {cfg.env.sparsity_levels}")
         sparse_wrapped_env = AsymmetricSparsityWrapper(base_env, sparsity_levels=list(cfg.env.sparsity_levels))

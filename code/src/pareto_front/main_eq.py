@@ -62,7 +62,7 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
         eval_env.action_space.seed(seed+123)
         _ = eval_env.reset(seed=seed+123)
 
-        agent = CAPQL(env=train_env, seed = seed, project_name=config['log_dir'], all_timesteps = int(config['irl']['num_refinement_cycles'] * config['irl']['refinement_timesteps']), lambda_loss = config['irl']['lambda'], use_enc= config['irl']['use_enc'])
+        agent = CAPQL(env=train_env, seed = seed, project_name=config['log_dir'], all_timesteps = int(config['irl']['num_refinement_cycles'] * config['irl']['refinement_timesteps']), lambda_loss = config['irl']['lambda'])
 
         # Collec the random trjaecotries
         print(f"\n[Run {run_id}] Phase 0: Initial Random Data Collection")

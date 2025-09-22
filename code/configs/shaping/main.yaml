@@ -19,9 +19,7 @@ env_hopper:
     reference: [-100.0,-100.0,-100.0]
     use_dense: True
     use_residual: True
-
-    use_enc: True
-    lambda: 10
+    lambda: 1
 
   rl_agent:
     gamma: 0.99
@@ -31,7 +29,6 @@ env_hopper:
     rl_algorithm: 'sac'
     device: cuda
     learning_starts: 10000
-    
 
   seed: 0 # Default seed
   num_parallel_runs: 1
@@ -54,9 +51,7 @@ env_cheetah:
     reference: [-100.0,-100.0]
     use_dense: True
     use_residual: True
-
-    use_enc: True
-    lambda: 10
+    lambda: 1
 
   rl_agent:
     gamma: 0.99
@@ -66,7 +61,7 @@ env_cheetah:
     rl_algorithm: 'sac'
     device: cuda
     learning_starts: 10000
-
+   
   seed: 0 
   num_parallel_runs: 1
   log_dir: 'logs'
@@ -90,9 +85,7 @@ env_walker2d:
     use_dense: True
     use_residual: True
 
-
-    use_enc: True
-    lambda: 10
+    lambda: 1
   rl_agent:
     gamma: 0.99
     total_timesteps: 500000
@@ -101,7 +94,8 @@ env_walker2d:
     rl_algorithm: 'sac'
     device: cuda
     learning_starts: 10000
-    
+
+
   seed: 0 
   num_parallel_runs: 1
   log_dir: 'logs'
@@ -124,8 +118,7 @@ env_swimmer:
     reference: [-100.0,-100.0]
     use_dense: True
     use_residual: True
-    use_enc: True
-    lambda: 10
+    lambda: 1
 
   rl_agent:
     gamma: 0.99
@@ -135,7 +128,7 @@ env_swimmer:
     rl_algorithm: 'sac'
     device: cuda
     learning_starts: 10000
-
+  
   seed: 0
   num_parallel_runs: 1
   log_dir: 'logs'

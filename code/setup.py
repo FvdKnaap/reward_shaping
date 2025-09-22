@@ -13,14 +13,14 @@ def read_requirements(file_path="requirements.txt"):
 if __name__ == "__main__":
 
     # Read the contents of your README file for the long description
-    with open("README.md", "r", encoding="utf-8") as fh:
+    with open("../README.md", "r", encoding="utf-8") as fh:
         long_description = fh.read()
 
     # Define your project's setup
     setup(
-        name="rl_portfolio",  # The name pip will use
+        name="rl_reward_shaping",  # The name pip will use
         version="0.1.0",  # Start with an initial version
-        author="Finn",
+        author="",
         description="project for reward shaping",
         long_description=long_description,
         long_description_content_type="text/markdown",  # Important for PyPI rendering

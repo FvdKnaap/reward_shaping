@@ -228,7 +228,7 @@ class ReflectionalSymmetricPolicy(nn.Module):
     """
     Policy that leverages reflectional (odd function) symmetry in the agent's leg control.
     """
-    def __init__(self, obs_dim, rew_dim, output_dim, action_space, net_arch,env_name, use_enc, **kwargs):
+    def __init__(self, obs_dim, rew_dim, output_dim, action_space, net_arch,env_name, **kwargs):
         super().__init__()
         # Copy original functionality for action sampling and scaling
         self.action_space = action_space
@@ -251,16 +251,7 @@ class ReflectionalSymmetricPolicy(nn.Module):
         self.sym_obs_dim = len(sym_obs_indices)
         self.asym_obs_dim = len(asym_obs_indices)
 
-        self.use_enc = use_enc
-        if self.use_enc:
-            # A network for the symmetric part, designed to be an odd function.
-            self.symmetric_net = mlp_no_bias(
-                input_dim=self.sym_obs_dim,
-                output_dim=self.sym_obs_dim,
-                net_arch=net_arch,
-                activation_fn=nn.Tanh, # Must be an odd activation function like tanh
-            )
-
+       
         main_net_input_dim = self.asym_obs_dim + self.sym_obs_dim + rew_dim
         self.main_net = mlp(main_net_input_dim, net_arch[-1], net_arch)
         
@@ -297,8 +288,11 @@ class ReflectionalSymmetricPolicy(nn.Module):
         expected_reflected_log_std = log_std_original  # log_std typically doesn't flip
         
         # Equivariance loss
-        mean_loss = F.mse_loss(mean_reflected, expected_reflected_mean)
-        std_loss = F.mse_loss(log_std_reflected, expected_reflected_log_std)
+        mean_loss = th.sum(th.abs(mean_reflected - expected_reflected_mean), dim=-1)
+        mean_loss = mean_loss.pow(2).mean()
+
+        std_loss = th.sum(th.abs(log_std_reflected - expected_reflected_log_std), dim=-1)
+        std_loss = std_loss.pow(2).mean()
         
         return mean_loss + std_loss
 
@@ -315,10 +309,8 @@ class ReflectionalSymmetricPolicy(nn.Module):
 
         # Process states through their respective networks
         # The symmetric part is processed by the odd-function network
-        if self.use_enc:
-            symmetric_embedding = self.symmetric_net(s_sym)
-        else:
-            symmetric_embedding = s_sym
+        symmetric_embedding = s_sym
+
         # Combine all information
         combined_input = th.cat((s_asym, symmetric_embedding, w), dim=1)
         
@@ -390,7 +382,6 @@ class CAPQL(MOAgent, MOPolicy):
         device: Union[th.device, str] = "auto",
         all_timesteps: int = 200000,
         lambda_loss: int = 10,
-        use_enc: bool = True,
     ):
         """CAPQL algorithm with continuous actions.
 
@@ -450,7 +441,7 @@ class CAPQL(MOAgent, MOPolicy):
                 param.requires_grad = False
 
         self.policy = ReflectionalSymmetricPolicy(
-            self.observation_dim, self.reward_dim, self.action_dim, self.env.action_space, net_arch=net_arch, env_name=name, use_enc = use_enc
+            self.observation_dim, self.reward_dim, self.action_dim, self.env.action_space, net_arch=net_arch, env_name=name
         ).to(self.device)
 
         self.q_optim = optim.Adam(chain(*[net.parameters() for net in self.q_nets]), lr=self.learning_rate)
@@ -632,6 +623,12 @@ class CAPQL(MOAgent, MOPolicy):
                     "reset_num_timesteps": reset_num_timesteps,
                 }
             )
+        
+       
+# Initialize min with positive infinity and max with negative infinity
+# so that the first real return values will correctly replace them.
+        overall_min_return = np.full(self.reward_dim, np.inf)
+        overall_max_return = np.full(self.reward_dim, -np.inf)
 
         eval_weights = equally_spaced_weights(self.reward_dim, n=num_eval_weights_for_front)
 
@@ -666,7 +663,8 @@ class CAPQL(MOAgent, MOPolicy):
 
             if self.global_step >= self.learning_starts:
                 self.update()
-
+            if self.global_step >= 200000:
+                self.eq=False
             if terminated or truncated:
                 obs, _ = self.env.reset()
                 self.num_episodes += 1
@@ -679,14 +677,29 @@ class CAPQL(MOAgent, MOPolicy):
             if self.log and self.global_step % eval_freq == 0:
                 # Evaluation
                 returns_test_tasks = [
-                    policy_evaluation_mo(self, eval_env, ew, rep=num_eval_episodes_for_front)[3] for ew in eval_weights
+                    policy_evaluation_mo(self, eval_env, ew, rep=num_eval_episodes_for_front)[4]  for ew in eval_weights
                 ]
+
+              
+                batch_min = np.min([np.min(p, axis=0) for p in returns_test_tasks], axis=0)
+                batch_max = np.max([np.max(p, axis=0) for p in returns_test_tasks], axis=0)
+                
+                overall_min_return = np.minimum(overall_min_return, batch_min)
+                overall_max_return = np.maximum(overall_max_return, batch_max)
+
+            # Create the dictionary required by the metric function
+                return_bounds = {
+                    "minimum": overall_min_return,
+                    "maximum": overall_max_return
+                }
+
                 log_all_multi_policy_metrics(
                     current_front=returns_test_tasks,
                     hv_ref_point=ref_point,
                     reward_dim=self.reward_dim,
                     global_step=self.global_step,
                     n_sample_weights=num_eval_weights_for_eval,
+                    return_bounds=return_bounds,
                     ref_front=known_pareto_front,
                 )
 
