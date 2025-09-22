@@ -124,6 +124,5 @@ env_hopper:
     - reference: referecne point used for HV, e.g., [-100.0,-100.0,-100.0]
     - use_dense: use dense rewards as features for the reward shaper
     - use_residual: use residual architecture for the reward shaper
-    - use_enc: use symmetric state encoder for the equivariant policy
     - lambda: loss parameter for the equivariance loss
 
