@@ -1,4 +1,4 @@
-# EXPLOITING REFLECTIONAL SYMMETRY IN HETEROGENEOUS MORL
+# PRISM
 
 A research project for reward shaping in reinforcement learning.
 
