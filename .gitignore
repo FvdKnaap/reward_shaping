@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+*.log
+wandb/
+outputs/
+multirun/
+*.pt
+*.pth
+*.ckpt
+*.npz
+**/rl_reward_shaping.egg-info/
