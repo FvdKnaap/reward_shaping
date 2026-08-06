@@ -23,6 +23,7 @@ from torch.nn.utils.rnn import pad_sequence
 from morl_baselines.multi_policy.capql.capql_equivariance import CAPQL
 import random
 
+import wandb
 from src.reward_shaping.env import AsymmetricSparsityWrapper, Walker2dRealityGapWrapper
 from src.reward_shaping.reward_model import IRLRewardShaper, IRLShapingWrapper, set_all_seeds
 
@@ -51,6 +52,10 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
     config['rl_agent']['device'] = str(device)
     log_dir = os.path.join(os.getcwd(), config['log_dir'], cfg.env.name, 'shaped', f"seed_{seed}")
     os.makedirs(log_dir, exist_ok=True)
+
+    # Create a local checkpoints directory
+    checkpoint_dir = os.path.join(log_dir, "checkpoints")
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
     try:
 
@@ -114,6 +119,10 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
                 patience=config['irl'].get('early_stop_patience', 20)
             )
 
+            # SAVE RESYMNET LOCALLY
+            resymnet_save_path = os.path.join(checkpoint_dir, f"cycle_{cycle+1}_resymnet")
+            irl_shaper.save_reward_model(save_dir=resymnet_save_path)
+
             # train Rl algo
             print(f"[Run {run_id}] Training SAC Agent...")
         
@@ -123,7 +132,26 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
                 ref_point=np.array(config['irl']['reference']),
                 known_pareto_front=None,
             )
-            
+
+            # SAVE CAPQL AGENT LOCALLY
+            capql_save_path = os.path.join(checkpoint_dir, f"cycle_{cycle+1}_capql")
+            agent.save(save_dir=capql_save_path, filename="capql_policy")
+
+            # --- C. UPLOAD TO W&B ARTIFACTS (For Google Colab Persistence) ---
+            if wandb.run is not None:
+                artifact = wandb.Artifact(
+                    name=f"run-{run_id}-cycle-{cycle+1}-models",
+                    type="model",
+                    description=f"ReSymNet and CAPQL models for run {run_id}, cycle {cycle+1}"
+                )
+                # Add both directories to the artifact package
+                artifact.add_dir(resymnet_save_path, name="resymnet")
+                artifact.add_dir(capql_save_path, name="capql")
+                
+                # Log artifact to W&B cloud
+                wandb.log_artifact(artifact)
+            print(f"[Run {run_id}] Uploaded cycle {cycle+1} models to W&B Artifacts!")
+
             print(f"[Run {run_id}] Collecting Expert Data...")
             
             # Collect expert trajectories like before but now using agnet policy

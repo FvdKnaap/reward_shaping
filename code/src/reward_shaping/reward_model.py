@@ -303,7 +303,14 @@ class IRLRewardShaper:
                 predictions.append(shaped_reward)
 
         return np.mean(predictions)
-        
+
+    # Add this method inside IRLRewardShaper class in src/reward_shaping/reward_model.py
+    def save_reward_model(self, save_dir: str, prefix: str = "resymnet"):
+        os.makedirs(save_dir, exist_ok=True)
+        for idx, net in enumerate(self.reward_nets):
+            save_path = os.path.join(save_dir, f"{prefix}_ensemble_{idx}.pt")
+            torch.save(net.state_dict(), save_path)
+        print(f"Saved ReSymNet ensemble models to {save_dir}") 
 
 class IRLShapingWrapper(gym.Wrapper):
     """ A wrapper that applies the IRL reward shaping to the environment.
