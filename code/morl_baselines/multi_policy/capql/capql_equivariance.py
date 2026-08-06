@@ -79,6 +79,15 @@ SYMMETRY_BLUEPRINTS = {
             'asym_action_indices': [],
         }
     },
+    'mo-lunar-lander-continuous-v2': {
+        'permutation': None,
+        'reflectional': {
+            'sym_obs_indices': [0,2,4,5],
+            'asym_obs_indices': [1,3,6,7],
+            'sym_action_indices': [1],
+            'asym_action_indices': [0],
+        }
+    } 
 }
 
 class ReplayMemory:

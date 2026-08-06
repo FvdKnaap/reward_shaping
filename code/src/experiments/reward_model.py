@@ -93,6 +93,15 @@ class IRLRewardShaper:
         self.action_dim = action_dim
         device = config['rl_agent']['device']
 
+        removed_indices = self.config['irl'].get('removed_indices', [])
+
+        self.removed_observation_indices = tuple(sorted(set(int(index) for index in removed_indices)))
+
+        removed_set = set(self.removed_observation_indices)
+
+        self.kept_indices = np.asarray([index for index in range(self.obs_dim) if index not in removed_set], dtype=np.int64)
+
+
         if device == 'cuda' and torch.cuda.is_available():
             self.device = torch.device('cuda')
         else:
@@ -103,9 +112,9 @@ class IRLRewardShaper:
         self.sparse_channel_idx = [i for i, s in enumerate(config['env']['sparsity_levels']) if s > 0.0][0]
 
         if config['irl']['use_dense']:
-            self.feature_dim = obs_dim + action_dim + len(self.dense_channel_indices)
+            self.feature_dim = len(self.kept_indices) + action_dim + len(self.dense_channel_indices)
         else:
-            self.feature_dim = obs_dim + action_dim
+            self.feature_dim = len(self.kept_indices) + action_dim
 
         self.num_objectives = len(self.dense_channel_indices) + 1
         self.trajectory_data = []
@@ -125,8 +134,14 @@ class IRLRewardShaper:
         """ Extracts features from the observation, action, and true dense rewards.
         The features include the observation, action, and dense rewards.
         """
-        dense_features = true_dense_rewards[self.dense_channel_indices]
-        return np.concatenate([obs, action, dense_features])
+        
+        obs = obs[self.kept_indices]
+        
+        if self.config['irl']['use_dense']:
+            dense_features = true_dense_rewards[self.dense_channel_indices]
+            return np.concatenate([obs, action, dense_features])
+
+        return np.concatenate([obs, action])
 
     def fit_feature_scaler(self, data):
         """ Fits the feature scaler on the provided trajectory data.
@@ -174,7 +189,7 @@ class IRLRewardShaper:
         train_set, val_set = random_split(trajectory_dataset, [train_len, val_len], generator=torch.Generator().manual_seed(self.config['seed']))
         # Fit the feature scaler on the training set
         self.fit_feature_scaler(train_set)
-
+        
         # Create data loaders
         train_loader = DataLoader(
             train_set,
@@ -214,7 +229,7 @@ class IRLRewardShaper:
 
                 # Iterate over the training data
                 for ep_features_batch, target_g_batch, masks in train_loader:
-                    
+
                     features_tensor = ep_features_batch.to(self.device)
                     target_g_tensor = target_g_batch.to(self.device)
                     mask_tensor = masks.to(self.device)
@@ -224,11 +239,9 @@ class IRLRewardShaper:
                     masked_preds = per_step_preds * mask_tensor
                     predicted_g = masked_preds.sum(dim=1)
 
-                    #sq = (predicted_g - target_g_tensor).pow(2)
-                    #lengths = mask_tensor.sum(dim=1).clamp_min(1.0)
-                    #print(lengths)
-                    #loss = (sq/lengths).mean()
-                    loss = nn.functional.mse_loss(predicted_g, target_g_tensor)
+                    seq_lengths = mask_tensor.sum(dim=1).clamp_min(1.0)
+
+                    loss = nn.functional.mse_loss(predicted_g / seq_lengths, target_g_tensor / seq_lengths)
 
                     optimizer.zero_grad()
                     loss.backward()
@@ -304,6 +317,65 @@ class IRLRewardShaper:
 
         return np.mean(predictions)
         
+    def evaluate_reconstruction(self, held_out_episodes: list):
+        all_predictions = []
+        all_targets = []
+
+        predicted_returns = []
+        target_returns = []
+
+        for episode in held_out_episodes:
+            
+            observations = episode['observations']
+            actions = episode['actions']
+            true_dense_rewards = episode['true_dense_rewards']
+
+            episode_predictions = []
+            episode_targets = []
+
+            for obs, action, dense_reward in zip(observations, actions, true_dense_rewards):
+                predicted_rewards = self.get_shaped_reward(obs, action, dense_reward)
+
+                target_reward = dense_reward[self.sparse_channel_idx]
+
+                episode_predictions.append(predicted_rewards)
+                episode_targets.append(target_reward)
+
+            episode_predictions = np.asarray(episode_predictions, dtype=np.float32)
+            episode_targets = np.asarray(episode_targets, dtype=np.float32)
+
+            all_predictions.append(episode_predictions)
+            all_targets.append(episode_targets)
+
+            predicted_returns.append(episode_predictions.sum())
+            target_returns.append(episode_targets.sum())
+
+        all_predictions = np.concatenate(all_predictions)
+        all_targets = np.concatenate(all_targets)
+
+        predicted_returns = np.asarray(predicted_returns)
+        target_returns = np.asarray(target_returns)
+
+        step_errors = all_predictions - all_targets
+        return_errors = predicted_returns - target_returns
+
+        if (len(all_predictions) > 1 and np.std(all_predictions) > 0 and np.std(all_targets > 0)):
+            correlation = np.corrcoef(all_predictions,all_targets)[0,1]
+        else:
+            correlation = np.nan
+
+        return {
+            'per_step_mse': float(np.mean(step_errors**2)),
+            'per_step_rmse': float(np.sqrt(np.mean(step_errors**2))),
+            'per_step_mae': float(np.mean(np.abs(step_errors))),
+            'per_step_correlation': float(correlation),
+            'episode_return_rmse': float(np.sqrt(np.mean(return_errors**2))),
+            'episode_return_mae': float(np.mean(np.abs(return_errors))),
+            'num_test_steps': int(len(all_targets)),
+            'num_test_episodes': int(len(held_out_episodes))
+            
+        }
+
 
 class IRLShapingWrapper(gym.Wrapper):
     """ A wrapper that applies the IRL reward shaping to the environment.

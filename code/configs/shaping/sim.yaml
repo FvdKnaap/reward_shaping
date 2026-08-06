@@ -74,9 +74,9 @@ env_walker2d:
     reward_weights: [1.0,1e-3]
 
   irl:
-    initial_collection_episodes: 500  
-    expert_collection_episodes: 500   
-    num_refinement_cycles: 5          
+    initial_collection_episodes: 1000  
+    expert_collection_episodes: 1000 
+    num_refinement_cycles: 2        
     refinement_timesteps: 100000     
     nn_epochs: 1000                     
     nn_lr: 0.005
@@ -84,6 +84,8 @@ env_walker2d:
     reference: [-100.0,-100.0]
     use_dense: True
     use_residual: True
+
+    removed_indices: [8]
 
     lambda: 1
   rl_agent:
@@ -95,6 +97,14 @@ env_walker2d:
     device: cuda
     learning_starts: 10000
 
+  sim_gap:
+    action_delay_steps: 2
+    actuator_gain_low: 0.8
+    actuator_gain_high: 1.2
+    evaluation_actuator_gain: 1.0
+
+    observation_noise_std: 0.0
+    record_clean_observation: False 
 
   seed: 0 
   num_parallel_runs: 1
@@ -119,39 +129,6 @@ env_swimmer:
     use_dense: True
     use_residual: True
     lambda: 1
-
-  rl_agent:
-    gamma: 0.99
-    total_timesteps: 500000
-    eval_freq: 10000
-    log_dir: "./logs/"
-    rl_algorithm: 'sac'
-    device: cuda
-    learning_starts: 10000
-  
-  seed: 0
-  num_parallel_runs: 1
-  log_dir: 'logs'
-
-env_lunar:
-  env:
-    name: mo-lunar-lander-continuous-v2
-    reward_type: 'sparse'
-    sparsity_levels: [1.0,0.0,0.0,0.0]
-    reward_weights: [1.0,1.0,1.0,1.0]
-
-  irl:
-    initial_collection_episodes: 1000  
-    expert_collection_episodes: 1000   
-    num_refinement_cycles: 2        
-    refinement_timesteps: 100000      
-    nn_epochs: 1000                 
-    nn_lr: 0.005
-    ensemble_size: 3
-    reference: [-100.0,-100.0,-100.0,-100.0]
-    use_dense: True
-    use_residual: True
-    lambda: 0.01
 
   rl_agent:
     gamma: 0.99
