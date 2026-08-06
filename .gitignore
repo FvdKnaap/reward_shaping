@@ -12,3 +12,4 @@ multirun/
 *.ckpt
 *.npz
 **/rl_reward_shaping.egg-info/
+/logs
