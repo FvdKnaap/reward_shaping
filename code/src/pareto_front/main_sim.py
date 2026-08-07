@@ -17,7 +17,7 @@ from omegaconf import DictConfig, OmegaConf
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Sequence
-
+import wandb
 def make_sim_env(config: dict, *, training: bool):
  
     rg = config['sim_gap']
@@ -36,6 +36,7 @@ def make_sim_env(config: dict, *, training: bool):
 def main(cfg: DictConfig, seed: int, run_id: int):
     print(f"--- Starting Iterative Run {run_id} with seed {seed} ---")
 
+    
     # Set random seeds
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -43,9 +44,11 @@ def main(cfg: DictConfig, seed: int, run_id: int):
     # Convert config to a mutable dict
     config = OmegaConf.to_container(cfg, resolve=True)
 
+    checkpoint_dir = os.path.join(config['log_dir'], "checkpoints")
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
     env = make_sim_env(config=config,training=True)
-    eval_env = make_sim_env(config=config,training=False)
+    eval_env = make_sim_env(config=config,training=True)
 
     if config['env']['reward_type'] == 'sparse':
         env = AsymmetricSparsityWrapper(env, sparsity_levels=config['env']['sparsity_levels'])
@@ -58,6 +61,25 @@ def main(cfg: DictConfig, seed: int, run_id: int):
         ref_point=np.array(config['irl']['reference']),
         known_pareto_front=None,
     )
+
+    
+
+    # SAVE CAPQL AGENT LOCALLY
+    capql_save_path = os.path.join(checkpoint_dir, f"seed_{seed}_capql")
+    algo.save(save_dir=capql_save_path, filename="capql_policy")
+
+    # --- C. UPLOAD TO W&B ARTIFACTS (For Google Colab Persistence) ---
+    if wandb.run is not None:
+        artifact = wandb.Artifact(
+            name=f"run-{run_id}-seed-{seed}-models",
+            type="model",
+            description=f"ReSymNet and CAPQL models for run {run_id}, seed {seed}"
+        )
+        # Add both directories to the artifact package
+        artifact.add_dir(capql_save_path, name="capql")
+        
+        # Log artifact to W&B cloud
+        wandb.log_artifact(artifact)
 
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 config_path = os.path.join(root_dir, "configs")

@@ -78,7 +78,7 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
         train_env.action_space.seed(seed)
         _ = train_env.reset(seed=seed)
         
-        eval_env = make_sim_env(config=config, training=False)
+        eval_env = make_sim_env(config=config, training=True)
 
         eval_env.action_space.seed(seed+123)
         _ = eval_env.reset(seed=seed+123)

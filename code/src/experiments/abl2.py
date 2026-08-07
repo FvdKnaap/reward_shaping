@@ -482,7 +482,7 @@ def run_single_ablation(cfg: DictConfig, seed: int) -> Path:
             )
             _add_episode_to_shapers(segments, shapers)
 
-    held_out_count = int(config["irl"].get("reconstruction_test_episodes", 200))
+    held_out_count = int(config["irl"].get("reconstruction_test_episodes", 1000))
     print(
         f"\nCollecting {held_out_count} fresh held-out trajectories. "
         "These are not added to either reward model."
@@ -524,7 +524,9 @@ def run_single_ablation(cfg: DictConfig, seed: int) -> Path:
     ]
 
     root_dir = Path(__file__).resolve().parents[2]
-    output_dir = root_dir / "outputs" / "reconstruction_ablation" / f"seed_{seed}"
+
+    str1 = ''.join(str(e) for e in sparsity_levels)
+    output_dir = root_dir / "outputs" / "reconstruction_ablation" / f"seed_{seed}" /f"sparse_{str1}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     summary_path = output_dir / "summary.csv"

@@ -241,7 +241,7 @@ class IRLRewardShaper:
 
                     seq_lengths = mask_tensor.sum(dim=1).clamp_min(1.0)
 
-                    loss = nn.functional.mse_loss(predicted_g / seq_lengths, target_g_tensor / seq_lengths)
+                    loss = nn.functional.mse_loss(predicted_g , target_g_tensor)
 
                     optimizer.zero_grad()
                     loss.backward()
@@ -323,7 +323,7 @@ class IRLRewardShaper:
 
         predicted_returns = []
         target_returns = []
-
+        segment_lengths = []
         for episode in held_out_episodes:
             
             observations = episode['observations']
@@ -332,12 +332,15 @@ class IRLRewardShaper:
 
             episode_predictions = []
             episode_targets = []
-
+            # Track segment/trajectory length
+            segment_lengths.append(len(observations))
+            
             for obs, action, dense_reward in zip(observations, actions, true_dense_rewards):
                 predicted_rewards = self.get_shaped_reward(obs, action, dense_reward)
 
                 target_reward = dense_reward[self.sparse_channel_idx]
 
+                
                 episode_predictions.append(predicted_rewards)
                 episode_targets.append(target_reward)
 
@@ -355,25 +358,40 @@ class IRLRewardShaper:
 
         predicted_returns = np.asarray(predicted_returns)
         target_returns = np.asarray(target_returns)
+        segment_lengths = np.asarray(segment_lengths, dtype=np.float32)
 
         step_errors = all_predictions - all_targets
         return_errors = predicted_returns - target_returns
 
-        if (len(all_predictions) > 1 and np.std(all_predictions) > 0 and np.std(all_targets > 0)):
+        if (len(all_predictions) > 1 and np.std(all_predictions) > 0 and np.std(all_targets) >0):
             correlation = np.corrcoef(all_predictions,all_targets)[0,1]
         else:
             correlation = np.nan
+
+        # 2. Prediction / Target slope via Linear Regression (Least Squares Slope)
+        # slope = Cov(target, pred) / Var(target)
+        target_std = np.std(all_targets)
+        pred_std = np.std(all_predictions)
+
+        if len(all_targets) > 1 and target_std > 0:
+            # np.polyfit(x, y, 1) returns [slope, intercept]
+            slope = float(np.polyfit(all_targets, all_predictions, 1)[0])
+        else:
+            slope = np.nan
 
         return {
             'per_step_mse': float(np.mean(step_errors**2)),
             'per_step_rmse': float(np.sqrt(np.mean(step_errors**2))),
             'per_step_mae': float(np.mean(np.abs(step_errors))),
             'per_step_correlation': float(correlation),
+            'reward_pred_std': float(pred_std),
+            'pred_target_slope': float(slope),
             'episode_return_rmse': float(np.sqrt(np.mean(return_errors**2))),
             'episode_return_mae': float(np.mean(np.abs(return_errors))),
+            'mean_segment_length': float(np.mean(segment_lengths)),
+            'std_segment_length': float(np.std(segment_lengths)),
             'num_test_steps': int(len(all_targets)),
-            'num_test_episodes': int(len(held_out_episodes))
-            
+            'num_test_episodes': int(len(segment_lengths)),
         }
 
 
