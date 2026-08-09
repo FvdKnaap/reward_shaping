@@ -135,7 +135,7 @@ env_swimmer:
 
 env_lunar:
   env:
-    name: mo-lunar-lander-continuous-v2
+    name: mo-lunar-lander-continuous-v3
     reward_type: 'sparse'
     sparsity_levels: [1.0,0.0,0.0,0.0]
     reward_weights: [1.0,1.0,1.0,1.0]
@@ -165,3 +165,5 @@ env_lunar:
   seed: 0
   num_parallel_runs: 1
   log_dir: 'logs'
+
+

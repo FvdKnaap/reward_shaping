@@ -79,7 +79,7 @@ SYMMETRY_BLUEPRINTS = {
             'asym_action_indices': [],
         }
     },
-    'mo-lunar-lander-continuous-v2': {
+    'mo-lunar-lander-continuous-v3': {
         'permutation': None,
         'reflectional': {
             'sym_obs_indices': [0,2,4,5],

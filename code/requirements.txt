@@ -22,3 +22,5 @@ pymoo
 tensorboardX
 future
 consoleprinter
+swig
+ gymnasium[box2d]
