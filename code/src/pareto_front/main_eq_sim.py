@@ -59,11 +59,17 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
 
     try:
 
-        base_collection_env = make_sim_env(config= config, training= True)
+        #base_collection_env = make_sim_env(config= config, training= True)
+
+        # Create the train and validation environments
+        #collection_env = AsymmetricSparsityWrapper(
+        #    base_collection_env,
+        #    sparsity_levels=config['env']['sparsity_levels']
+        #)
 
         # Create the train and validation environments
         collection_env = AsymmetricSparsityWrapper(
-            base_collection_env,
+            mo_gym.make(config['env']['name']),
             sparsity_levels=config['env']['sparsity_levels']
         )
 

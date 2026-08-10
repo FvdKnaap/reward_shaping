@@ -47,7 +47,8 @@ def main(cfg: DictConfig, seed: int, run_id: int):
     checkpoint_dir = os.path.join(config['log_dir'], "checkpoints")
     os.makedirs(checkpoint_dir, exist_ok=True)
 
-    env = make_sim_env(config=config,training=True)
+    #env = make_sim_env(config=config,training=True)
+    env = mo_gym.make(config['env']['name'])
     eval_env = make_sim_env(config=config,training=True)
 
     if config['env']['reward_type'] == 'sparse':
