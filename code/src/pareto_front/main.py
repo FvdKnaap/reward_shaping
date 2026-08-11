@@ -34,8 +34,6 @@ def main(cfg: DictConfig, seed: int, run_id: int):
 
     env.action_space.seed(seed)
     _ = env.reset(seed=seed)
-    
-    eval_env = mo_gym.make(config['env']['name'])
 
     eval_env.action_space.seed(seed+123)
     _ = eval_env.reset(seed=seed+123)
