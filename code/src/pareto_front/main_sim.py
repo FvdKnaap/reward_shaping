@@ -18,6 +18,8 @@ import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Sequence
 import wandb
+from src.reward_shaping.reward_model import set_all_seeds
+
 def make_sim_env(config: dict, *, training: bool):
  
     rg = config['sim_gap']
@@ -38,9 +40,9 @@ def main(cfg: DictConfig, seed: int, run_id: int):
 
     
     # Set random seeds
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    
+    #np.random.seed(seed)
+    #torch.manual_seed(seed)
+    set_all_seeds(seed)
     # Convert config to a mutable dict
     config = OmegaConf.to_container(cfg, resolve=True)
 
@@ -51,6 +53,14 @@ def main(cfg: DictConfig, seed: int, run_id: int):
     env = mo_gym.make(config['env']['name'])
     eval_env = make_sim_env(config=config,training=True)
 
+    env.action_space.seed(seed)
+    _ = env.reset(seed=seed)
+    
+    eval_env = mo_gym.make(config['env']['name'])
+
+    eval_env.action_space.seed(seed+123)
+    _ = eval_env.reset(seed=seed+123)
+    
     if config['env']['reward_type'] == 'sparse':
         env = AsymmetricSparsityWrapper(env, sparsity_levels=config['env']['sparsity_levels'])
    

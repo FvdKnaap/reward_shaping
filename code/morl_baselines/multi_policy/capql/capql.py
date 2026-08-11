@@ -458,6 +458,7 @@ class CAPQL(MOAgent, MOPolicy):
 
             if self.global_step < self.learning_starts:
                 action = self.env.action_space.sample()
+                print(action)
             else:
                 with th.no_grad():
                     action = self.policy.get_action(

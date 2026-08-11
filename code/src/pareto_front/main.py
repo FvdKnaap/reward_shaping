@@ -7,6 +7,7 @@ import os
 
 # Check correct file
 from src.reward_shaping.env import AsymmetricSparsityWrapper
+from src.reward_shaping.reward_model import set_all_seeds
 from morl_baselines.multi_policy.capql.capql import CAPQL
 
 
@@ -22,15 +23,23 @@ def main(cfg: DictConfig, seed: int, run_id: int):
     print(f"--- Starting Iterative Run {run_id} with seed {seed} ---")
 
     # Set random seeds
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    
+    #np.random.seed(seed)
+    #torch.manual_seed(seed)
+    set_all_seeds(seed)
     # Convert config to a mutable dict
     config = OmegaConf.to_container(cfg, resolve=True)
 
     env = mo_gym.make(config['env']['name'])
     eval_env = mo_gym.make(config['env']['name'])
 
+    env.action_space.seed(seed)
+    _ = env.reset(seed=seed)
+    
+    eval_env = mo_gym.make(config['env']['name'])
+
+    eval_env.action_space.seed(seed+123)
+    _ = eval_env.reset(seed=seed+123)
+    
     if config['env']['reward_type'] == 'sparse':
         env = AsymmetricSparsityWrapper(env, sparsity_levels=config['env']['sparsity_levels'])
    
