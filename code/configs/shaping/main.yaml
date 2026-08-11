@@ -148,10 +148,10 @@ env_lunar:
     nn_epochs: 1000                 
     nn_lr: 0.005
     ensemble_size: 3
-    reference: [-100.0,-100.0,-100.0,-100.0]
+    reference: [-110.0,-400.0,-100.0,-100.0]
     use_dense: True
     use_residual: True
-    lambda: 0.01
+    lambda: 1
 
   rl_agent:
     gamma: 0.99

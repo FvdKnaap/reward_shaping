@@ -44,15 +44,17 @@ class AsymmetricSparsityWrapper(gym.Wrapper):
         reward_to_return = np.zeros_like(self.reward_accumulator)
         release_decisions = self.np_random.random(size=self.num_objectives) < self.reward_release_probs
     
-        
+       
         # Release rewards based on sparsity levels and release decisions
         for i in range(self.num_objectives):
             is_dense_channel = self.sparsity_levels[i] == 0.0
             if is_dense_channel or release_decisions[i] or terminated or truncated:
                 reward_to_return[i] = self.reward_accumulator[i]
                 self.reward_accumulator[i] = 0.0
-       
+        
         return obs, reward_to_return, terminated, truncated, info
+
+
 
 """Literature-inspired Walker2d reality-gap wrapper.
 
