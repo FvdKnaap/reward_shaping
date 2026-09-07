@@ -100,7 +100,7 @@ class IRLRewardShaper:
         removed_set = set(self.removed_observation_indices)
 
         self.kept_indices = np.asarray([index for index in range(self.obs_dim) if index not in removed_set], dtype=np.int64)
-
+        
 
         if device == 'cuda' and torch.cuda.is_available():
             self.device = torch.device('cuda')
@@ -272,6 +272,8 @@ class IRLRewardShaper:
                         val_loss += loss.item()
 
                     avg_val_loss = val_loss / len(val_loader) if len(val_loader) > 0 else 0
+
+                # Reduce LR when validation loss plateaus
 
                 print(f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 

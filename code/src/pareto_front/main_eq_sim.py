@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
+import json
 import time
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -84,12 +85,53 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
         train_env.action_space.seed(seed)
         _ = train_env.reset(seed=seed)
         
-        eval_env = make_sim_env(config=config, training=True)
+        eval_env = mo_gym.make(config['env']['name']) #make_sim_env(config=config, training=True)
 
         eval_env.action_space.seed(seed+123)
         _ = eval_env.reset(seed=seed+123)
 
-        agent = CAPQL(env=train_env, seed = seed, project_name=config['log_dir'], all_timesteps = int(config['irl']['num_refinement_cycles'] * config['irl']['refinement_timesteps']), lambda_loss = config['irl']['lambda'])
+        agent = CAPQL(
+            env=train_env,
+            seed=seed,
+            project_name=config['log_dir'],
+            all_timesteps=int(
+                config['irl']['num_refinement_cycles']
+                * config['irl']['refinement_timesteps']
+            ),
+            lambda_loss=config['irl']['lambda'],
+        )
+
+        # CAPQL's train() closes W&B when global_step == all_timesteps.  In an
+        # iterative run that happens INSIDE the final cycle, before this file
+        # gets a chance to upload the final cycle artifact.  Keep the run open
+        # here and close it explicitly after all cycle artifacts are logged.
+        _capql_close_wandb = agent.close_wandb
+        agent.close_wandb = lambda: None
+
+        if wandb.run is None:
+            raise RuntimeError("CAPQL did not initialize an active W&B run.")
+
+        # Persist the PRISM/shaper settings in the W&B run itself so future
+        # evaluation does not have to infer sparsity from launch order.
+        release_probs = [1.0 - float(s) for s in config['env']['sparsity_levels']]
+        wandb.config.update(
+            {
+                "prism_env_name": config['env']['name'],
+                "prism_seed": int(seed),
+                "prism_run_id": int(run_id),
+                "prism_sparsity_levels": list(config['env']['sparsity_levels']),
+                "prism_reward_release_probs": release_probs,
+                "prism_num_refinement_cycles": int(config['irl']['num_refinement_cycles']),
+                "prism_refinement_timesteps": int(config['irl']['refinement_timesteps']),
+                "prism_ensemble_size": int(config['irl']['ensemble_size']),
+                "prism_use_dense": bool(config['irl']['use_dense']),
+                "prism_use_residual": bool(config['irl']['use_residual']),
+                "prism_nn_lr": float(config['irl']['nn_lr']),
+                "prism_lambda": float(config['irl']['lambda']),
+                "prism_full_config": config,
+            },
+            allow_val_change=True,
+        )
 
         # Collec the random trjaecotries
         print(f"\n[Run {run_id}] Phase 0: Initial Random Data Collection")
@@ -143,20 +185,60 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
             capql_save_path = os.path.join(checkpoint_dir, f"cycle_{cycle+1}_capql")
             agent.save(save_dir=capql_save_path, filename="capql_policy")
 
-            # --- C. UPLOAD TO W&B ARTIFACTS (For Google Colab Persistence) ---
-            if wandb.run is not None:
-                artifact = wandb.Artifact(
-                    name=f"run-{run_id}-cycle-{cycle+1}-models",
-                    type="model",
-                    description=f"ReSymNet and CAPQL models for run {run_id}, cycle {cycle+1}"
+            # --- C. UPLOAD TO W&B ARTIFACTS ---
+            if wandb.run is None:
+                raise RuntimeError(
+                    f"W&B run is closed before cycle {cycle+1} artifact upload."
                 )
-                # Add both directories to the artifact package
-                artifact.add_dir(resymnet_save_path, name="resymnet")
-                artifact.add_dir(capql_save_path, name="capql")
-                
-                # Log artifact to W&B cloud
-                wandb.log_artifact(artifact)
-            print(f"[Run {run_id}] Uploaded cycle {cycle+1} models to W&B Artifacts!")
+
+            # Save explicit cycle metadata alongside the model files.
+            cycle_metadata = {
+                "wandb_run_id": wandb.run.id,
+                "seed": int(seed),
+                "local_run_id": int(run_id),
+                "cycle": int(cycle + 1),
+                "env_name": config['env']['name'],
+                "sparsity_levels": list(config['env']['sparsity_levels']),
+                "reward_release_probs": [
+                    1.0 - float(s) for s in config['env']['sparsity_levels']
+                ],
+                "sparse_channel_idx": int(irl_shaper.sparse_channel_idx),
+                "dense_channel_indices": [
+                    int(i) for i in irl_shaper.dense_channel_indices
+                ],
+                "ensemble_size": int(irl_shaper.ensemble_size),
+                "feature_dim": int(irl_shaper.feature_dim),
+                "refinement_timesteps": int(config['irl']['refinement_timesteps']),
+                "global_step": int(agent.global_step),
+            }
+            metadata_path = os.path.join(
+                checkpoint_dir, f"cycle_{cycle+1}_metadata.json"
+            )
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(cycle_metadata, f, indent=2)
+
+            # W&B run ID makes artifact names unique across separate launches;
+            # seed/run_id alone are reused in your current experiment pattern.
+            artifact = wandb.Artifact(
+                name=f"prism-{wandb.run.id}-cycle-{cycle+1}-models",
+                type="model",
+                description=(
+                    f"ReSymNet and CAPQL models for seed {seed}, "
+                    f"cycle {cycle+1}"
+                ),
+                metadata=cycle_metadata,
+            )
+            artifact.add_dir(resymnet_save_path, name="resymnet")
+            artifact.add_dir(capql_save_path, name="capql")
+            artifact.add_file(metadata_path, name="cycle_metadata.json")
+
+            logged_artifact = wandb.log_artifact(artifact)
+            # Make persistence explicit before continuing/finishing the run.
+            logged_artifact.wait()
+            print(
+                f"[Run {run_id}] Uploaded cycle {cycle+1} artifact: "
+                f"{artifact.name}:{logged_artifact.version}"
+            )
 
             print(f"[Run {run_id}] Collecting Expert Data...")
             
@@ -178,11 +260,18 @@ def run_single_iterative_run(cfg: DictConfig, seed: int, run_id: int):
                         irl_shaper.add_episode_data(ep_obs, ep_action, ep_true_dense, cum_sparse_rew)
                         ep_obs, ep_true_dense, ep_action, cum_sparse_rew = [], [], [], 0.0
 
+        # CAPQL was deliberately prevented from closing W&B inside its final
+        # train() call. All model artifacts are now safely uploaded, so close.
+        if wandb.run is not None:
+            _capql_close_wandb()
+
         success_msg = f"Run {run_id} (seed {seed}) completed successfully. Results in: {log_dir}"
         print(f"\n--- {success_msg} ---")
         return success_msg
 
     except Exception as e:
+        if wandb.run is not None:
+            wandb.finish()
         error_msg = f"Run {run_id} (seed {seed}) failed: {str(e)}"
         print(f"\n--- {error_msg} ---")
         import traceback

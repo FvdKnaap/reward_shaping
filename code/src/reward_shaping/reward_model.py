@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
+import json
 import time
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -304,13 +305,111 @@ class IRLRewardShaper:
 
         return np.mean(predictions)
 
-    # Add this method inside IRLRewardShaper class in src/reward_shaping/reward_model.py
     def save_reward_model(self, save_dir: str, prefix: str = "resymnet"):
+        """Save the complete ReSymNet inference state.
+
+        In addition to the ensemble weights, persist the StandardScaler and
+        basic feature/config metadata.  The scaler is part of the trained
+        reward model because the networks were optimized on normalized input
+        features.
+        """
         os.makedirs(save_dir, exist_ok=True)
+
+        # Ensemble weights.
         for idx, net in enumerate(self.reward_nets):
             save_path = os.path.join(save_dir, f"{prefix}_ensemble_{idx}.pt")
             torch.save(net.state_dict(), save_path)
-        print(f"Saved ReSymNet ensemble models to {save_dir}") 
+
+        # Persist the exact normalization statistics used by the networks.
+        if self.scaler_fitted:
+            np.savez(
+                os.path.join(save_dir, "feature_scaler.npz"),
+                mean_=np.asarray(self.feature_scaler.mean_),
+                scale_=np.asarray(self.feature_scaler.scale_),
+                var_=np.asarray(self.feature_scaler.var_),
+                n_samples_seen_=np.asarray(self.feature_scaler.n_samples_seen_),
+                n_features_in_=np.asarray(self.feature_scaler.n_features_in_),
+            )
+
+        metadata = {
+            "format_version": 2,
+            "ensemble_size": int(self.ensemble_size),
+            "feature_dim": int(self.feature_dim),
+            "dense_channel_indices": [int(i) for i in self.dense_channel_indices],
+            "sparse_channel_idx": int(self.sparse_channel_idx),
+            "scaler_fitted": bool(self.scaler_fitted),
+            "env_name": self.config.get("env", {}).get("name"),
+            "sparsity_levels": list(self.config.get("env", {}).get("sparsity_levels", [])),
+            "use_dense": bool(self.config.get("irl", {}).get("use_dense", True)),
+            "use_residual": bool(self.config.get("irl", {}).get("use_residual", True)),
+        }
+        with open(os.path.join(save_dir, "resymnet_metadata.json"), "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
+
+        print(
+            f"Saved ReSymNet ensemble + scaler + metadata to {save_dir}"
+        )
+
+    def load_reward_model(self, load_dir: str, prefix: str = "resymnet"):
+        """Restore ReSymNet ensemble weights and normalization state."""
+        load_dir = os.path.abspath(load_dir)
+        if not os.path.isdir(load_dir):
+            raise FileNotFoundError(f"ReSymNet directory not found: {load_dir}")
+
+        metadata_path = os.path.join(load_dir, "resymnet_metadata.json")
+        metadata = {}
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+
+            saved_ensemble = int(metadata.get("ensemble_size", self.ensemble_size))
+            if saved_ensemble != self.ensemble_size:
+                raise ValueError(
+                    f"Checkpoint ensemble_size={saved_ensemble}, but current "
+                    f"config ensemble_size={self.ensemble_size}."
+                )
+
+            saved_feature_dim = int(metadata.get("feature_dim", self.feature_dim))
+            if saved_feature_dim != self.feature_dim:
+                raise ValueError(
+                    f"Checkpoint feature_dim={saved_feature_dim}, but current "
+                    f"model feature_dim={self.feature_dim}. Check environment, "
+                    "dense-feature settings, and any removed indices."
+                )
+
+        for idx, net in enumerate(self.reward_nets):
+            model_path = os.path.join(load_dir, f"{prefix}_ensemble_{idx}.pt")
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"Missing ReSymNet ensemble file: {model_path}")
+            state = torch.load(model_path, map_location=self.device)
+            net.load_state_dict(state)
+            net.eval()
+
+        scaler_path = os.path.join(load_dir, "feature_scaler.npz")
+        if os.path.exists(scaler_path):
+            scaler = np.load(scaler_path, allow_pickle=False)
+            self.feature_scaler.mean_ = scaler["mean_"]
+            self.feature_scaler.scale_ = scaler["scale_"]
+            self.feature_scaler.var_ = scaler["var_"]
+
+            n_seen = scaler["n_samples_seen_"]
+            self.feature_scaler.n_samples_seen_ = (
+                n_seen.item() if n_seen.ndim == 0 else n_seen
+            )
+            self.feature_scaler.n_features_in_ = int(
+                np.asarray(scaler["n_features_in_"]).item()
+            )
+            self.scaler_fitted = True
+        else:
+            # Old checkpoints can still load weights, but exact inference is
+            # impossible without reconstructing normalization statistics.
+            self.scaler_fitted = False
+
+        print(
+            f"Loaded ReSymNet from {load_dir} "
+            f"(scaler_restored={self.scaler_fitted})"
+        )
+        return metadata
 
 class IRLShapingWrapper(gym.Wrapper):
     """ A wrapper that applies the IRL reward shaping to the environment.

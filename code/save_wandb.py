@@ -22,7 +22,7 @@ def main():
     arg_parser.add_argument("--param_value", type=str, required=True,
                             help="The configuration value to match (e.g., 'mo-hopper-v5').")
     arg_parser.add_argument("--history_keys", nargs='+',
-                            default=["global_step", "eval/spacing", "eval/hypervolume", "eval/eum", "eval/cardinality"],
+                            default=["global_step", "eval/spacing", "eval/hypervolume", "eval/eum", "eval/variance_objective", "eval/cardinality"],
                             help="A space-separated list of history keys (metrics) to fetch.")
     arg_parser.add_argument("--output_dir", type=str, default="pareto-front",
                             help="Base directory to save the output CSV file.")

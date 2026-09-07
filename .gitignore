@@ -13,3 +13,4 @@ multirun/
 *.npz
 **/rl_reward_shaping.egg-info/
 /logs
+pareto-front/
